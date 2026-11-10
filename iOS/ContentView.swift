@@ -23,8 +23,9 @@ struct ContentView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Button("JSONを共有") { prepare(.json) }.disabled(model.results.isEmpty || model.busy)
                     Button("テキストを共有") { prepare(.text) }.disabled(model.results.isEmpty || model.busy)
-                    Button("画像を共有（PNG）") { prepare(.png) }.disabled(model.results.isEmpty || model.busy)
-                    Text("画像は検証先1件につき1枚。画面外の結果も含め、一覧の全履歴を出力します。")
+                    Button("画像を共有（1枚にまとめる）") { prepare(.png) }.disabled(model.results.isEmpty || model.busy)
+                    Button("画像を共有（検証先ごと）") { prepare(.pngSeparate) }.disabled(model.results.isEmpty || model.busy)
+                    Text("一覧の結果を1枚にまとめて共有できます。検証先ごとに画像を分けることもできます。")
                         .font(.caption).foregroundStyle(.secondary)
                     if model.exporting { ProgressView("レポートを書き出しています…") }
                 }

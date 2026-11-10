@@ -128,8 +128,9 @@ final class TesterModel: ObservableObject {
         defer { exporting = false }
         let snapshot = results
         let paths = includePaths
-        if format == .png {
-            return try await ImageReportExporter.write(snapshot, includePaths: paths, to: folder)
+        if format == .png || format == .pngSeparate {
+            return try await ImageReportExporter.write(snapshot, includePaths: paths, to: folder,
+                                                       layout: format == .png ? .combined : .separate)
         }
         let data = format == .json
             ? try ReportExporter.json(snapshot, includePaths: paths)

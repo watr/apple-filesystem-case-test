@@ -29,7 +29,10 @@ struct ContentView: View {
                 Spacer()
                 Button("JSONを保存…") { prepare(.json) }.disabled(model.results.isEmpty || model.busy)
                 Button("テキストを保存…") { prepare(.text) }.disabled(model.results.isEmpty || model.busy)
-                Button("画像を保存（PNG）…") { prepare(.png) }.disabled(model.results.isEmpty || model.busy)
+                Menu("画像を保存（PNG）") {
+                    Button("1枚にまとめる…") { prepare(.png) }
+                    Button("検証先ごとに分ける…") { prepare(.pngSeparate) }
+                }.disabled(model.results.isEmpty || model.busy)
             }
         }.padding()
         .alert("個人情報を含むレポートを保存", isPresented: $confirmPaths) {
@@ -49,7 +52,7 @@ struct ContentView: View {
         if model.includePaths { confirmPaths = true } else { save() }
     }
     private func save() {
-        if exportFormat == .png { saveImages(); return }
+        if exportFormat == .png || exportFormat == .pngSeparate { saveImages(); return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [exportFormat == .json ? .json : .plainText]
         panel.nameFieldStringValue = exportFormat == .json ? "case-sensitivity.json" : "case-sensitivity.txt"
@@ -64,7 +67,10 @@ struct ContentView: View {
         panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
         panel.prompt = "画像の保存先を選択"
-        panel.message = "検証先1件につきPNGを1枚、選択した場所の新しいフォルダに保存します。"
+        let format = exportFormat
+        panel.message = format == .png
+            ? "全結果を1枚のPNGにまとめ、選択した場所の新しいフォルダに保存します。"
+            : "検証先1件につきPNGを1枚、選択した場所の新しいフォルダに保存します。"
         guard panel.runModal() == .OK, let parent = panel.url else { return }
         Task {
             let scoped = parent.startAccessingSecurityScopedResource()
@@ -74,7 +80,7 @@ struct ContentView: View {
             do {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
                 created = true
-                let urls = try await model.writeReportFiles(format: .png, in: folder)
+                let urls = try await model.writeReportFiles(format: format, in: folder)
                 model.message = "\(urls.count)枚の画像を保存しました: \(folder.path)"
             } catch {
                 if created { try? FileManager.default.removeItem(at: folder) }
