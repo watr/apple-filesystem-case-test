@@ -1,11 +1,12 @@
 # Apple File System Case Sensitivity Tester
 
-iPhone・iPad・Macの保存先ごとに、ファイルシステムのAPI属性と実ファイルの作成結果を比較するSwiftUIアプリです。OS名から大文字・小文字の区別を推測しません。外部ライブラリ・アカウント・管理者権限は不要です。
+iPhone・iPad・Macの保存先ごとに、ファイルシステムのAPI属性と実ファイルの作成結果を比較するSwiftUIアプリです。OS名から大文字・小文字の区別を推測しません。アプリの利用に外部ライブラリ・アカウント・管理者権限は不要です。iPhone / iPadへの開発用インストールにはApple Accountによる署名設定が必要です。
 
 ## プロジェクト構成
 
 ```text
 CaseSensitivityTester.xcodeproj/  iOS / macOSの独立したアプリターゲットと共有Scheme
+Config/                          共有ビルド設定とローカル署名設定のサンプル
 Shared/                          Foundation / POSIX検証・判定・モデル・レポート出力
 SharedUI/                        非同期実行・履歴保存・共通結果表示・JSON読み込み
 iOS/                            iPhone / iPadのUIと共有シート
@@ -33,12 +34,22 @@ Bundle Identifier:
 | `CaseSensitivityTester-iOS` | `io.github.watr.CaseSensitivityTester.iOS` |
 | `CaseSensitivityTester-macOS` | `io.github.watr.CaseSensitivityTester.macOS` |
 
-Teamはリポジトリに固定していません。Identifierを変更する場合はXcodeの設定と `Tools/generate_project.py` の両方を更新してください。再生成は `python3 Tools/generate_project.py` です。
+Team IDはGit管理外の `Config/Signing.local.xcconfig` に分離します。初回設定は次の手順です。
+
+```sh
+cp Config/Signing.local.xcconfig.example Config/Signing.local.xcconfig
+```
+
+作成したファイルの `DEVELOPMENT_TEAM =` の右側に自分のTeam IDを設定してください。iOSのDebug / Release両方が `Config/iOS.xcconfig` 経由で読み込みます。ローカルファイルがなくても、Simulatorや署名なしのビルドは可能です。Xcodeプロジェクトを再生成してもローカルファイルは変更されません。
+
+XcodeのSigning画面でTeamを選び直すと `project.pbxproj` にTeam IDが直接書き込まれることがあります。Team IDや証明書・プロビジョニングの個別設定はローカルファイルに記載し、コミット前にプロジェクト差分を確認してください。Apple Account・証明書・プロビジョニング自体はXcode / Keychain側で管理します。
+
+Identifierを変更する場合はXcodeの設定と `Tools/generate_project.py` の両方を更新してください。再生成は `python3 Tools/generate_project.py` です。
 
 ## iPhone / iPadでのビルド・インストール
 
 1. `CaseSensitivityTester.xcodeproj` をXcodeで開きます。
-2. iOSターゲットの **Signing & Capabilities** でTeamを選択します。必要ならBundle Identifierを自分のものに変更します。
+2. Xcodeの **Settings → Apple Accounts** で必要なアカウントを設定し、上記のローカル設定ファイルにTeam IDを記入します。iOSターゲットの **Signing & Capabilities** でAutomatically manage signingが有効なことを確認します。必要ならBundle Identifierを自分のものに変更します。
 3. Schemeを `CaseSensitivityTester-iOS`、実行先を接続したiPhoneまたはiPadにします。端末のDeveloper Modeや信頼設定はXcodeの案内に従います。
 4. Runでインストール・起動します。
 5. 「検証開始 / 再検証」を押し、Documents / Application Support / Temporary Directoryの結果を確認します。

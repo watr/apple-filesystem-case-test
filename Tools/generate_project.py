@@ -25,6 +25,7 @@ for directory in ['Shared', 'SharedUI', 'iOS', 'macOS']:
         kind = 'sourcecode.swift' if path.suffix == '.swift' else 'text.plist.entitlements'
         files[name] = add(name, f'isa = PBXFileReference; lastKnownFileType = {kind}; path = {quoted(name)}; sourceTree = SOURCE_ROOT;')
 readme = add('readme', 'isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT;')
+ios_config = add('iosConfig', 'isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Config/iOS.xcconfig"; sourceTree = SOURCE_ROOT;')
 product_ids = []
 targets = []
 for platform, target in [('iOS', 'CaseSensitivityTester-iOS'), ('macOS', 'CaseSensitivityTester-macOS')]:
@@ -60,7 +61,8 @@ for platform, target in [('iOS', 'CaseSensitivityTester-iOS'), ('macOS', 'CaseSe
                             INFOPLIST_KEY_LSApplicationCategoryType=quoted('public.app-category.developer-tools'),
                             LD_RUNPATH_SEARCH_PATHS=quoted('$(inherited) @executable_path/../Frameworks'))
         text = ' '.join(f'{k} = {v};' for k, v in settings.items())
-        configs.append(add(target + mode, f'isa = XCBuildConfiguration; buildSettings = {{ {text} }}; name = {mode};'))
+        base_config = f'baseConfigurationReference = {ios_config}; ' if platform == 'iOS' else ''
+        configs.append(add(target + mode, f'isa = XCBuildConfiguration; {base_config}buildSettings = {{ {text} }}; name = {mode};'))
     config_list = add(target + 'configs', f'isa = XCConfigurationList; buildConfigurations = {listing(configs)}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
     target_id = add(target, f'isa = PBXNativeTarget; buildConfigurationList = {config_list}; buildPhases = {listing([sources, frameworks, resources])}; buildRules = (); dependencies = (); name = {quoted(target)}; productName = {quoted(target)}; productReference = {product}; productType = "com.apple.product-type.application";')
     targets.append(target_id)
@@ -85,7 +87,7 @@ groups = []
 for directory in ['Shared', 'SharedUI', 'iOS', 'macOS']:
     refs = [ref for path, ref in files.items() if path.startswith(directory + '/')]
     groups.append(add('group' + directory, f'isa = PBXGroup; children = {listing(refs)}; name = {directory}; sourceTree = "<group>";'))
-main = add('main', f'isa = PBXGroup; children = {listing([readme] + groups + [products])}; sourceTree = "<group>";')
+main = add('main', f'isa = PBXGroup; children = {listing([readme, ios_config] + groups + [products])}; sourceTree = "<group>";')
 configs = []
 for mode in ['Debug', 'Release']:
     settings = 'CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; GCC_WARN_INHIBIT_ALL_WARNINGS = NO; SWIFT_STRICT_CONCURRENCY = complete;'

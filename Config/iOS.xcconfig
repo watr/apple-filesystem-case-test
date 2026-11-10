@@ -1,0 +1,2 @@
+// Shared iOS configuration. The optional local file is excluded from Git.
+#include? "Signing.local.xcconfig"

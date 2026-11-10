@@ -4,3 +4,6 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 *.xcresult
+
+# Machine-specific signing settings
+/Config/Signing.local.xcconfig
