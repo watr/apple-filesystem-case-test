@@ -2,6 +2,10 @@
 
 iPhone・iPad・Macの保存先ごとに、ファイルシステムのAPI属性と実ファイルの作成結果を比較するSwiftUIアプリです。OS名から大文字・小文字の区別を推測しません。アプリの利用に外部ライブラリ・アカウント・管理者権限は不要です。iPhone / iPadへの開発用インストールにはApple Accountによる署名設定が必要です。
 
+> **開発について / Development note:** 本プロジェクトは、OpenAI CodexやClaude CodeなどのAIコーディングツールの支援を受けて開発しています。
+>
+> This project is developed with assistance from AI coding tools, including OpenAI Codex and Claude Code.
+
 ## プロジェクト構成
 
 ```text
