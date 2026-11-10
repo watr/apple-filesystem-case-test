@@ -13,6 +13,8 @@ final class TesterModel: ObservableObject {
     @Published var targets: [TargetDirectory] = []
     @Published var results: [TestResult] = []
     @Published var running = false
+    @Published var exporting = false
+    var busy: Bool { running || exporting }
     @Published var message: String?
     @Published var includePaths = false
     private var scopedURLs: [URL] = []
@@ -46,7 +48,7 @@ final class TesterModel: ObservableObject {
     }
 
     func removeTarget(_ target: TargetDirectory) {
-        guard !running, target.selected else { return }
+        guard !busy, target.selected else { return }
         if let index = scopedURLs.firstIndex(of: target.url) {
             scopedURLs.remove(at: index).stopAccessingSecurityScopedResource()
         }
@@ -54,7 +56,7 @@ final class TesterModel: ObservableObject {
     }
 
     func run() {
-        guard !running else { return }
+        guard !busy else { return }
         running = true; message = nil
         let locations = targets
         Task {
@@ -81,7 +83,7 @@ final class TesterModel: ObservableObject {
     }
 
     func importReports(_ urls: [URL]) {
-        guard !running else { return }
+        guard !busy else { return }
         running = true; message = nil
         Task {
             do {
@@ -117,6 +119,24 @@ final class TesterModel: ObservableObject {
     func report(json: Bool) throws -> Data {
         if json { return try ReportExporter.json(results, includePaths: includePaths) }
         return Data(try ReportExporter.text(results, includePaths: includePaths).utf8)
+    }
+
+    func writeReportFiles(format: ReportFormat, in folder: URL) async throws -> [URL] {
+        guard !busy else { throw CocoaError(.userCancelled) }
+        exporting = true
+        message = nil
+        defer { exporting = false }
+        let snapshot = results
+        let paths = includePaths
+        if format == .png {
+            return try await ImageReportExporter.write(snapshot, includePaths: paths, to: folder)
+        }
+        let data = format == .json
+            ? try ReportExporter.json(snapshot, includePaths: paths)
+            : Data(try ReportExporter.text(snapshot, includePaths: paths).utf8)
+        let url = folder.appendingPathComponent("case-sensitivity.\(format.fileExtension)")
+        try data.write(to: url, options: .atomic)
+        return [url]
     }
 
     deinit {

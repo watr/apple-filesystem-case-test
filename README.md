@@ -17,7 +17,8 @@ iOS/                            iPhone / iPadのUIと共有シート
 macOS/                           NSOpenPanel / NSSavePanelとサンドボックス設定
 Tests/Unit/                      モック可能な判定・エラー・シリアライズのXCTest
 Tests/Integration/               実ファイルを使うXCTest
-Package.swift                    共通ロジックだけをビルド・テストするSwift Package
+Tests/Rendering/                 PNG生成・改ページ・パス非表示のXCTest
+Package.swift                    共通ロジック・画像生成をビルド・テストするSwift Package
 Tools/generate_project.py        Xcodeプロジェクトの再生成（Python標準ライブラリのみ）
 ```
 
@@ -57,7 +58,7 @@ Identifierを変更する場合はXcodeの設定と `Tools/generate_project.py` 
 3. Schemeを `CaseSensitivityTester-iOS`、実行先を接続したiPhoneまたはiPadにします。端末のDeveloper Modeや信頼設定はXcodeの案内に従います。
 4. Runでインストール・起動します。
 5. 「検証開始 / 再検証」を押し、Documents / Application Support / Temporary Directoryの結果を確認します。
-6. 「JSONを共有」「テキストを共有」から共有シートを開き、ファイル保存や転送を行います。
+6. 「JSONを共有」「テキストを共有」「画像を共有（PNG）」から共有シートを開き、ファイル保存や転送を行います。
 
 これら3つの検証先はアプリのサンドボックス内です。ユーザーの一般のDocumentsフォルダではありません。iOSの任意フォルダを検証先として選ぶ追加機能は未実装です。JSONレポートの読み込みにはファイル選択を使用できます。
 
@@ -79,7 +80,7 @@ xcodebuild -project CaseSensitivityTester.xcodeproj \
 3. デフォルトの3つの保存先を検証します。
 4. 「フォルダを追加…」で任意のディレクトリを選択します。複数選択・複数回の追加が可能です。
 5. 再検証すると、選択した保存先も個別に検証されます。
-6. 「JSONを保存…」「テキストを保存…」から保存できます。
+6. 「JSONを保存…」「テキストを保存…」から保存できます。「画像を保存（PNG）…」では保存先フォルダを選択します。
 
 Universal Binaryのコンパイル確認:
 
@@ -140,6 +141,16 @@ APIと実測は別々に保存します。APIがUnknownでも実測が完全な�
 
 履歴と詳細ログには絶対パス等を保持します。共有・保存の既定値ではパス、ボリューム名、パスを含む可能性のあるエラー本文を伏せます。「絶対パス・ボリューム名を含める」を選ぶと確認ダイアログを表示します。詳細ログで内容を確認してから共有してください。伏せ字で出力したレポートから元のパス・エラー本文は復元できません。
 
+### 画像で共有する
+
+「画像を共有（PNG）」を押すと、一覧の全履歴について、**検証先1件につき1枚**のPNGを作成します。画面のスクリーンショットではなく、結果全体に合わせた高さでレイアウトするため、画面外の結果や長い保存先パスも画像に収まります。幅は1440ピクセルで、ライト表示・一定の文字サイズで出力します。
+
+画像にはOS・端末・日時、API / 実測 / 最終判定、Case-preserving、両ファイルの作成結果・errno・inode・device ID、内容一致・独立性・クリーンアップ、エラー件数、アプリと検証処理のバージョンを載せます。詳細なエラー本文や生のファイル内容は画像には載せません。詳細ログの共有にはJSON・テキストを使用してください。
+
+絶対パス・ボリューム名は通常省略し、既存の「絶対パス・ボリューム名を含める」設定をオンにした場合だけ、確認後に画像へ載せます。iPhone / iPadでは複数PNGをまとめて共有シートに渡します。Macでは選択した保存先の下に `CaseSensitivityReport-<UUID>` フォルダを新規作成し、番号付きPNGを保存します。
+
+画像作成中は検証・読み込み・共有操作を無効にし、画像を1枚ずつ作成します。iPhone / iPadの共有用一時ファイルは、共有シートを閉じた後に削除します。
+
 ## JSON仕様
 
 UTF-8のJSON配列です。各要素が1保存先・1回分の検証を表します。日付はISO 8601、inodeはUInt64、device IDはInt64です。
@@ -165,11 +176,12 @@ UTF-8のJSON配列です。各要素が1保存先・1回分の検証を表しま
 swift test
 swift test --filter CoreUnitTests
 swift test --filter CoreIntegrationTests
+swift test --filter ReportRenderingTests
 ```
 
 共通ロジックは `FileProbing` による差し替えと、証拠データを入力とする `VerdictResolver` の単体テストに対応します。単体テストでは両判定、EEXISTだけでは判定しないこと、権限・I/Oエラー、内容・inodeの不整合、API矛盾、Unknown、JSON往復、伏せ字を確認します。統合テストは別ターゲットで、実ファイル検証・クリーンアップ・既存ファイル保護・存在しない保存先等を確認します。
 
-Xcodeでテストする場合は `Package.swift` を別途開き、パッケージのテストを実行してください。アプリの2つのSchemeはビルド・実行用です。
+Xcodeでテストする場合は `Package.swift` を別途開き、パッケージのテストを実行してください。アプリの2つのSchemeはビルド・実行用です。画像のテストでは、複数PNGの生成、パスやエラー本文の非表示、長いパスによる画像の高さの拡張、保存失敗の通知を確認します。
 
 ## 確認状況と既知の制約
 
@@ -181,6 +193,7 @@ Xcodeでテストする場合は `Package.swift` を別途開き、パッケー�
 | macOS Release Universalビルド（アドホック署名） | 成功、arm64 / x86_64を確認 |
 | 共通ロジックの単体テスト | 10件成功 |
 | 実ファイルの統合テスト | 4件成功（権限エラー・既存ファイル保護・クリーンアップを含む） |
+| PNG画像生成のテスト | 4件成功（複数画像・パス非表示・長いパス・保存失敗） |
 | Mac上の2保存先の共通ロジック実測 | いずれもAPI・実測がCase-insensitiveで一致、削除成功、エラーなし |
 | 成果物のBundle Identifier | 両ターゲットで `io.github.watr` プレフィックスを確認 |
 

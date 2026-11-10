@@ -42,7 +42,7 @@ struct TargetListView: View {
                     Text(target.label)
                     Spacer()
                     if target.selected {
-                        Button("削除") { model.removeTarget(target) }.disabled(model.running)
+                        Button("削除") { model.removeTarget(target) }.disabled(model.busy)
                     }
                 }
                 Text(target.url.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)

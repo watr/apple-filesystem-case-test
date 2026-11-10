@@ -7,6 +7,11 @@ let package = Package(
     targets: [
         .target(name: "CaseSensitivityCore", path: "Shared"),
         .testTarget(name: "CoreUnitTests", dependencies: ["CaseSensitivityCore"], path: "Tests/Unit"),
-        .testTarget(name: "CoreIntegrationTests", dependencies: ["CaseSensitivityCore"], path: "Tests/Integration")
+        .testTarget(name: "CoreIntegrationTests", dependencies: ["CaseSensitivityCore"], path: "Tests/Integration"),
+        .target(name: "CaseSensitivityRendering", dependencies: ["CaseSensitivityCore"], path: "SharedUI",
+                exclude: ["TesterModel.swift", "ResultsView.swift", "ReportImportButton.swift"],
+                sources: ["ImageReportExporter.swift"]),
+        .testTarget(name: "ReportRenderingTests", dependencies: ["CaseSensitivityCore", "CaseSensitivityRendering"],
+                    path: "Tests/Rendering")
     ]
 )

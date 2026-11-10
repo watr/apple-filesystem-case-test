@@ -4,7 +4,7 @@ import UIKit
 struct ContentView: View {
     @StateObject private var model = TesterModel()
     @State private var share: SharePayload?
-    @State private var exportJSON = true
+    @State private var exportFormat: ReportFormat = .json
     @State private var confirmPaths = false
 
     var body: some View {
@@ -13,22 +13,26 @@ struct ContentView: View {
                 Section("検証対象（アプリのサンドボックス内）") { TargetListView(model: model) }
                 Section {
                     Button(model.running ? "検証中…" : "検証開始 / 再検証") { model.run() }
-                        .disabled(model.running)
+                        .disabled(model.busy)
                     if model.running { ProgressView() }
                 }
                 Section("レポート共有・比較（保存済み履歴を含む最大100件）") {
                     ReportImportButton(model: model)
-                    Toggle("絶対パス・ボリューム名を含める", isOn: $model.includePaths)
+                    Toggle("絶対パス・ボリューム名を含める", isOn: $model.includePaths).disabled(model.busy)
                     Text("共有前に確認できます。通常はパスを伏せて出力します。")
                         .font(.caption).foregroundStyle(.secondary)
-                    Button("JSONを共有") { prepare(json: true) }.disabled(model.results.isEmpty || model.running)
-                    Button("テキストを共有") { prepare(json: false) }.disabled(model.results.isEmpty || model.running)
+                    Button("JSONを共有") { prepare(.json) }.disabled(model.results.isEmpty || model.busy)
+                    Button("テキストを共有") { prepare(.text) }.disabled(model.results.isEmpty || model.busy)
+                    Button("画像を共有（PNG）") { prepare(.png) }.disabled(model.results.isEmpty || model.busy)
+                    Text("画像は検証先1件につき1枚。画面外の結果も含め、一覧の全履歴を出力します。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if model.exporting { ProgressView("レポートを書き出しています…") }
                 }
                 if let message = model.message { Section { Text(message).foregroundStyle(.orange) } }
                 Section("結果・履歴") { ResultsView(results: model.results) }
             }
             .navigationTitle("Case Sensitivity")
-            .sheet(item: $share, onDismiss: removeShareFiles) { payload in ShareSheet(url: payload.url) }
+            .sheet(item: $share, onDismiss: removeShareFiles) { payload in ShareSheet(urls: payload.urls) }
             .alert("個人情報を含むレポートを共有", isPresented: $confirmPaths) {
                 Button("共有する") { export() }
                 Button("キャンセル", role: .cancel) {}
@@ -37,21 +41,25 @@ struct ContentView: View {
             }
         }
     }
-    private func prepare(json: Bool) {
-        exportJSON = json
+    private func prepare(_ format: ReportFormat) {
+        exportFormat = format
         if model.includePaths { confirmPaths = true } else { export() }
     }
     private func export() {
-        do {
-            let data = try model.report(json: exportJSON)
-            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Report-\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
-            let url = folder.appendingPathComponent(exportJSON ? "case-sensitivity.json" : "case-sensitivity.txt")
-            do { try data.write(to: url, options: .atomic) }
-            catch { try? FileManager.default.removeItem(at: folder); throw error }
-            share = SharePayload(url: url)
-            shareFolder = folder
-        } catch { model.message = "レポート作成失敗: \(error.localizedDescription)" }
+        Task {
+            var folder: URL?
+            do {
+                let destination = FileManager.default.temporaryDirectory.appendingPathComponent("Report-\(UUID().uuidString)")
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+                folder = destination
+                let urls = try await model.writeReportFiles(format: exportFormat, in: destination)
+                shareFolder = destination
+                share = SharePayload(urls: urls)
+            } catch {
+                if let folder { try? FileManager.default.removeItem(at: folder) }
+                model.message = "レポート作成失敗: \(error.localizedDescription)"
+            }
+        }
     }
     @State private var shareFolder: URL?
     private func removeShareFiles() {
@@ -62,11 +70,11 @@ struct ContentView: View {
         shareFolder = nil
     }
 }
-private struct SharePayload: Identifiable { let id = UUID(); let url: URL }
+private struct SharePayload: Identifiable { let id = UUID(); let urls: [URL] }
 private struct ShareSheet: UIViewControllerRepresentable {
-    let url: URL
+    let urls: [URL]
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        UIActivityViewController(activityItems: urls, applicationActivities: nil)
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
